@@ -1,85 +1,99 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 자동 증가, ULID 및 UUIDv7을 사용한 데이터베이스 성능 테스트
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+이 리포지토리는 MySQL 데이터베이스에서 다양한 기본 키 생성 전략의 성능을 테스트하고 비교하기 위해 설계되었습니다. 테스트되는 전략에는 자동 증가, ULID 및 UUIDv7이 포함됩니다. 특히, 높은 부하 조건에서 각 방법이 데이터베이스 성능에 미치는 영향을 확인하는 것이 목표입니다.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 프로젝트 구조
 
-## Description
+프로젝트는 다음과 같이 구성되어 있습니다:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```plaintext
+.
+├── README.md
+├── directory_structure.txt           # 디렉토리 구조를 나열한 텍스트 파일
+├── k6_test.js                        # K6 부하 테스트 스크립트
+├── nest-cli.json                     # NestJS CLI 구성 파일
+├── package-lock.json                 # npm 종속성에 대한 잠금 파일
+├── package.json                      # 프로젝트 종속성과 스크립트
+├── src/                              # TypeScript 소스 파일
+│   ├── app.controller.spec.ts
+│   ├── app.controller.ts
+│   ├── app.module.ts
+│   ├── app.service.ts
+│   ├── config/
+│   │   └── database.config.ts        # 데이터베이스 구성 파일
+│   ├── entities/
+│   │   ├── auto-increment.entity.ts  # 자동 증가 기본 키에 대한 엔티티
+│   │   ├── ulid.entity.ts            # ULID 기본 키에 대한 엔티티
+│   │   └── uuidv7.entity.ts          # UUIDv7 기본 키에 대한 엔티티
+│   ├── main.ts                       # 애플리케이션 진입점
+│   └── speed/
+│       ├── speed.controller.ts       # 성능 테스트 API를 위한 컨트롤러
+│       ├── speed.module.ts           # 성능 테스트 모듈
+│       └── speed.service.ts          # 성능 테스트 로직을 처리하는 서비스
+├── test/                             # 엔드 투 엔드 테스트를 위한 테스트 파일
+│   ├── app.e2e-spec.ts
+│   └── jest-e2e.json
+├── tsconfig.build.json               # 빌드를 위한 TypeScript 구성 파일
+└── tsconfig.json                     # TypeScript 구성 파일
 ```
 
-## Compile and run the project
+## 개요
 
-```bash
-# development
-$ npm run start
+이 프로젝트는 MySQL 데이터베이스 환경에서 세 가지 기본 키 생성 전략의 성능을 측정하고 비교하는 것을 목적으로 합니다:
 
-# watch mode
-$ npm run start:dev
+- **자동 증가**: 데이터베이스에서 생성된 순차적인 정수 기반 기본 키.
+- **ULID**: 고유성과 정렬 가능성을 제공하는 사전 순으로 정렬 가능한 식별자.
+- **UUIDv7**: 무작위성과 시간 순서를 결합한 시간 기반 UUID.
 
-# production mode
-$ npm run start:prod
-```
+## 성능 테스트
 
-## Run tests
+### 테스트 방법론
 
-```bash
-# unit tests
-$ npm run test
+이 프로젝트에는 `k6_test.js`라는 부하 테스트 스크립트가 포함되어 있으며, 이를 통해 [K6](https://k6.io/)를 사용해 높은 부하 조건을 시뮬레이션합니다. 테스트는 다음과 같은 주요 지표를 측정하는 데 중점을 둡니다:
 
-# e2e tests
-$ npm run test:e2e
+- **평균 응답 시간**: 삽입 작업을 처리하는 데 평균적으로 소요되는 시간.
+- **최대 응답 시간**: 삽입 작업 중 기록된 가장 긴 시간.
+- **전체 처리량**: 초당 처리된 작업의 총 수.
 
-# test coverage
-$ npm run test:cov
-```
+### 테스트 실행
 
-## Resources
+1. **데이터베이스 설정**:
 
-Check out a few resources that may come in handy when working with NestJS:
+   - MySQL이 실행 중이고 올바르게 구성되었는지 확인하십시오. `src/config/database.config.ts` 파일을 열어 데이터베이스 자격 증명을 업데이트합니다.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+2. **종속성 설치**:
 
-## Support
+   ```bash
+   npm install
+   ```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+3. **애플리케이션 실행**:
 
-## Stay in touch
+   ```bash
+   npm run start
+   ```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+4. **부하 테스트 실행**:
+   ```bash
+   k6 run k6_test.js
+   ```
 
-## License
+### 결과 및 분석
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+부하 테스트를 실행한 후, 결과는 콘솔에 표시됩니다. 테스트의 주요 지표는 높은 부하 조건에서 어떤 기본 키 전략이 가장 성능이 좋은지를 판단하는 데 도움이 됩니다.
+
+부하 테스트의 예시 결과:
+
+| **지표**           | **자동 증가** | **ULID** | **UUIDv7** |
+| ------------------ | ------------- | -------- | ---------- |
+| **평균 응답 시간** | 741.44 µs     | 1.05 ms  | 813.42 µs  |
+| **최대 응답 시간** | 66.86 ms      | 72.76 ms | 48.97 ms   |
+| **처리량**         | 높음          | 중간     | 높음       |
+
+### 결론
+
+성능 테스트를 바탕으로 다음과 같은 결론을 도출할 수 있습니다:
+
+- **자동 증가**: 가장 일관되고 빠른 성능을 제공하므로, 예측 가능성과 속도가 중요한 시나리오에 이상적입니다.
+- **ULID**: 고유성과 정렬 가능성을 제공하지만, 특히 부하가 높은 상황에서 성능 저하를 겪을 수 있습니다.
+- **UUIDv7**: 시간 기반 고유 식별자의 필요성과 성능 간의 균형을 잘 유지하며, 시간 순서가 중요한 시나리오에서 우수한 성능을 발휘합니다.

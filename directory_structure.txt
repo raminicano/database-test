@@ -1,0 +1,30 @@
+.
+├── README.md
+├── directory_structure.txt
+├── k6_test.js
+├── nest-cli.json
+├── package-lock.json
+├── package.json
+├── src
+│   ├── app.controller.spec.ts
+│   ├── app.controller.ts
+│   ├── app.module.ts
+│   ├── app.service.ts
+│   ├── config
+│   │   └── database.config.ts
+│   ├── entities
+│   │   ├── auto-increment.entity.ts
+│   │   ├── ulid.entity.ts
+│   │   └── uuidv7.entity.ts
+│   ├── main.ts
+│   └── speed
+│       ├── speed.controller.ts
+│       ├── speed.module.ts
+│       └── speed.service.ts
+├── test
+│   ├── app.e2e-spec.ts
+│   └── jest-e2e.json
+├── tsconfig.build.json
+└── tsconfig.json
+
+10 directories, 56 files
